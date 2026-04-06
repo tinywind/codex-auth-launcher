@@ -1,0 +1,4 @@
+auth.json
+auth.json-*
+*.log
+*.pid
