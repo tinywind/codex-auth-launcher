@@ -202,15 +202,11 @@ if [ -n "$PROFILE_HINT" ]; then
     PROFILE_NAME="$(basename "$PROFILE_ROOT")"
     STORED_AUTH_FILE="$(load_profile_auth_source "$PROFILE_ROOT")"
 
-    if [ -n "$AUTH_FILE" ] && [ -n "$STORED_AUTH_FILE" ] && [ "$AUTH_FILE" != "$STORED_AUTH_FILE" ]; then
-      echo "Profile \"$PROFILE_HINT\" is already bound to a different auth.json:" >&2
-      echo "  $STORED_AUTH_FILE" >&2
-      echo "Use a different profile name or reset the profile first." >&2
-      exit 1
-    fi
-
     if [ -z "$AUTH_FILE" ]; then
       AUTH_FILE="$STORED_AUTH_FILE"
+    elif [ -n "$STORED_AUTH_FILE" ] && [ "$AUTH_FILE" != "$STORED_AUTH_FILE" ]; then
+      echo "Updating auth.json for named profile \"$PROFILE_HINT\":" >&2
+      echo "  $STORED_AUTH_FILE -> $AUTH_FILE" >&2
     fi
   else
     PROFILE_SLUG="$(sanitize_slug "$PROFILE_HINT")"

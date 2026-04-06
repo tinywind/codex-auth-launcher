@@ -139,6 +139,7 @@ Each auth file path gets its own isolated `CODEX_HOME`, so sessions, resumes, an
 If you use the same auth file path again, the launcher reuses that same profile home.
 
 If you create a named profile with `--profile`, that profile remembers its auth file path and can be reused later without `--auth.json`.
+If you pass `--auth.json` again for an existing named profile, the launcher updates that profile's `auth.json` symlink and stored auth path without deleting the existing profile state.
 
 `codex-auth-profile <name> ...` provides the same named-profile behavior, but it requires the profile name to be the first positional argument.
 If that named profile does not already exist, omitting `--auth.json` is an error.
@@ -239,6 +240,7 @@ codex-auth-reset-all [--yes]
 - The first run for a profile copies the current `~/.codex` into that isolated home before replacing `auth.json` with a symlink.
 - Auto-generated profiles are keyed by the canonical auth file path.
 - Named profiles created with `--profile` remember their auth file path and can be reused later without `--auth.json`.
+- Passing `--auth.json` to an existing named profile rebinds that profile to the new auth file while keeping its existing sessions and local state.
 - `codex-auth-profile` is a convenience wrapper that requires the profile name as the first positional argument.
 - The installer copies standalone commands into the user-local command path instead of relying on shell function wrappers.
 - `codex-auth-reset` deletes the isolated profile directory so the next run starts from a fresh bootstrap.
