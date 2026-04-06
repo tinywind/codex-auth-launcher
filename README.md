@@ -47,12 +47,18 @@ Your source auth file remains the single source of truth, so refreshed tokens st
 
 ## Quick start
 
-1. Install the shell functions:
+1. Install the local commands:
 
    ```bash
    bash ~/IdeaProjects/codex-auth-launcher/install-bashrc-command.sh
    source ~/.bashrc
    ```
+
+   The installer copies the runtime scripts into `~/.local/share/codex-auth-launcher`
+   and installs standalone command files into `~/.local/bin`.
+   It replaces any older `codex-auth-launcher` shell-function block in your rc file with a minimal PATH block.
+   The copied commands continue to work even if the original repository directory is removed later.
+   Re-run the installer after updating the repository when you want to refresh the copied command files.
 
 2. Run Codex with a specific auth file:
 
@@ -62,6 +68,7 @@ Your source auth file remains the single source of truth, so refreshed tokens st
    ```
 
    `--auth.json` is explicit on first use.
+   `codex-auth` errors and exits if `--auth.json` is missing and there is no stored auth path for the requested named profile.
    The remaining arguments are forwarded to `codex`.
    Launcher options can appear before or after Codex arguments.
    Use `--` only when you want everything after it to be passed to `codex` unchanged.
@@ -75,6 +82,7 @@ Your source auth file remains the single source of truth, so refreshed tokens st
    ```
 
    The profile stores the canonical auth path in its metadata.
+   The first `codex-auth-profile <name>` run must include `--auth.json <path>` or the command exits with an error.
    `codex-auth-profile` reserves the first positional argument for the profile name.
 
 4. Reuse that named profile later without passing the auth path again:
@@ -133,6 +141,7 @@ If you use the same auth file path again, the launcher reuses that same profile 
 If you create a named profile with `--profile`, that profile remembers its auth file path and can be reused later without `--auth.json`.
 
 `codex-auth-profile <name> ...` provides the same named-profile behavior, but it requires the profile name to be the first positional argument.
+If that named profile does not already exist, omitting `--auth.json` is an error.
 
 If you need to pass Codex's own `--profile` flag through to `codex`, put it after an explicit `--` so the launcher does not consume it.
 
@@ -206,6 +215,22 @@ codex-auth-reset-all [--yes]
             ├── history/
             ├── session_index.jsonl
             └── ... Codex-managed state files ...
+
+~/.local/share/codex-auth-launcher/
+├── profile-common.sh
+├── run-with-auth.sh
+├── run-with-profile.sh
+├── link-global-auth.sh
+├── reset-profile.sh
+└── reset-all-profiles.sh
+
+~/.local/bin/
+├── codex-auth
+├── codex-auth-profile
+├── codex-auth-link
+├── codex-auth-home
+├── codex-auth-reset
+└── codex-auth-reset-all
 ```
 
 ## Notes
@@ -215,6 +240,7 @@ codex-auth-reset-all [--yes]
 - Auto-generated profiles are keyed by the canonical auth file path.
 - Named profiles created with `--profile` remember their auth file path and can be reused later without `--auth.json`.
 - `codex-auth-profile` is a convenience wrapper that requires the profile name as the first positional argument.
+- The installer copies standalone commands into the user-local command path instead of relying on shell function wrappers.
 - `codex-auth-reset` deletes the isolated profile directory so the next run starts from a fresh bootstrap.
 - `codex-auth-reset-all` deletes every isolated profile directory managed by the launcher.
 - `codex resume`, `codex fork`, and session history only see data inside the current profile home.

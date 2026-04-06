@@ -9,6 +9,7 @@ usage() {
 Usage: codex-auth-profile <profile-name> [launcher options] [--] [codex args...]
 
 The profile name must be the first positional argument.
+On first use of a profile, you must pass --auth.json <path>.
 This command is a wrapper around:
   codex-auth --profile <profile-name> ...
 
