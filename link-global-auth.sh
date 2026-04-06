@@ -3,11 +3,11 @@ set -euo pipefail
 
 usage() {
   cat >&2 <<'EOF'
-Usage: codex-auth-link [--codex-home <path>] <auth-file>
+Usage: codex-auth-link [--codex-home <path>] --auth.json <auth-file>
 
 Examples:
-  codex-auth-link ~/auth.json-work
-  codex-auth-link --codex-home ~/.codex-team ~/auth.json-team
+  codex-auth-link --auth.json ~/auth.json-work
+  codex-auth-link --codex-home ~/.codex-team --auth.json ~/auth.json-team
 EOF
   exit 1
 }
@@ -22,6 +22,11 @@ while [ "$#" -gt 0 ]; do
       TARGET_CODEX_HOME="$2"
       shift 2
       ;;
+    --auth.json|--auth-json)
+      [ "$#" -ge 2 ] || usage
+      AUTH_FILE_INPUT="$2"
+      shift 2
+      ;;
     -h|--help)
       usage
       ;;
@@ -30,16 +35,14 @@ while [ "$#" -gt 0 ]; do
       usage
       ;;
     *)
-      if [ -n "$AUTH_FILE_INPUT" ]; then
-        usage
-      fi
-      AUTH_FILE_INPUT="$1"
-      shift
+      echo "Unexpected argument: $1" >&2
+      usage
       ;;
   esac
 done
 
 if [ -z "$AUTH_FILE_INPUT" ]; then
+  echo "Missing required option: --auth.json" >&2
   usage
 fi
 

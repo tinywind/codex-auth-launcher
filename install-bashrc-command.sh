@@ -6,13 +6,19 @@ START_MARKER="# >>> codex-auth-launcher >>>"
 END_MARKER="# <<< codex-auth-launcher <<<"
 SELF_DIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
 RUNNER_PATH="$SELF_DIR/run-with-auth.sh"
+PROFILE_RUNNER_PATH="$SELF_DIR/run-with-profile.sh"
 LINKER_PATH="$SELF_DIR/link-global-auth.sh"
 RESET_PATH="$SELF_DIR/reset-profile.sh"
+RESET_ALL_PATH="$SELF_DIR/reset-all-profiles.sh"
 
 read -r -d '' BLOCK <<EOF || true
 # >>> codex-auth-launcher >>>
 codex-auth() {
   bash "$RUNNER_PATH" "\$@"
+}
+
+codex-auth-profile() {
+  bash "$PROFILE_RUNNER_PATH" "\$@"
 }
 
 codex-auth-link() {
@@ -25,6 +31,10 @@ codex-auth-home() {
 
 codex-auth-reset() {
   bash "$RESET_PATH" "\$@"
+}
+
+codex-auth-reset-all() {
+  bash "$RESET_ALL_PATH" "\$@"
 }
 # <<< codex-auth-launcher <<<
 EOF

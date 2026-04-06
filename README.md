@@ -33,6 +33,9 @@ When a profile is created for the first time, the launcher bootstraps its `CODEX
 
 Later runs for the same auth file reuse the same profile home instead of copying again.
 
+If you create a named profile with `--profile`, that profile remembers its canonical auth file path in `profile.json`.
+After the first run, you can reuse that profile by name without passing `--auth.json` again.
+
 ## No-copy guarantee for auth files
 
 The launcher never copies your source auth file.
@@ -54,36 +57,57 @@ Your source auth file remains the single source of truth, so refreshed tokens st
 2. Run Codex with a specific auth file:
 
    ```bash
-   codex-auth ~/auth.json-work login status
-   codex-auth ~/auth.json-work exec --skip-git-repo-check "Summarize this folder."
+   codex-auth --auth.json ~/auth.json-work login status
+   codex-auth --auth.json ~/auth.json-work exec --skip-git-repo-check "Summarize this folder."
    ```
 
-   After the auth file argument is parsed, the remaining arguments are forwarded to `codex`.
-   The `--` separator is optional.
+   `--auth.json` is explicit on first use.
+   The remaining arguments are forwarded to `codex`.
+   Launcher options can appear before or after Codex arguments.
+   Use `--` only when you want everything after it to be passed to `codex` unchanged.
 
-3. Reuse the same auth file path later:
+3. Create a reusable named profile:
 
    ```bash
-   codex-auth ~/auth.json-work exec --skip-git-repo-check "What did I ask earlier?"
-   codex-auth ~/auth.json-work exec resume --last --skip-git-repo-check "Continue from the last run."
+   codex-auth --profile help --auth.json ~/auth.json-work exec --skip-git-repo-check "What did I ask earlier?"
+   codex-auth-profile help --auth.json ~/auth.json-work exec --skip-git-repo-check "What did I ask earlier?"
+   codex-auth exec --skip-git-repo-check "What did I ask earlier?" --profile help --auth.json ~/auth.json-work
    ```
 
-   The same canonical auth file path resolves to the same isolated `CODEX_HOME`, so persisted sessions remain available.
+   The profile stores the canonical auth path in its metadata.
+   `codex-auth-profile` reserves the first positional argument for the profile name.
 
-4. Reset that profile when you want a clean start:
+4. Reuse that named profile later without passing the auth path again:
 
    ```bash
-   codex-auth-reset --yes ~/auth.json-work
+   codex-auth --profile help exec resume --last --skip-git-repo-check "Continue from the last run."
+   codex-auth-home --profile help
+   ```
+
+   The same named profile resolves to the same isolated `CODEX_HOME`, so persisted sessions remain available.
+
+5. Reset that profile when you want a clean start:
+
+   ```bash
+   codex-auth-reset --yes --profile help
    ```
 
    The next run recreates the profile by copying `~/.codex` again and relinking `auth.json`.
+
+6. Reset every isolated profile at once:
+
+   ```bash
+   codex-auth-reset-all --yes
+   ```
+
+   This deletes all profile directories under `~/.codex-auth-launcher/profiles`.
 
 ## Commands
 
 ### 1) Switch the global auth link
 
 ```bash
-codex-auth-link ~/auth.json-work
+codex-auth-link --auth.json ~/auth.json-work
 ```
 
 This rewires the default `~/.codex/auth.json` symlink.
@@ -93,21 +117,35 @@ Use this when you only want one active default auth at a time.
 ### 2) Run Codex with an isolated auth home
 
 ```bash
-codex-auth ~/auth.json-work
-codex-auth ~/auth.json-work exec --skip-git-repo-check "Summarize this folder."
-codex-auth ~/auth.json-personal -- exec --skip-git-repo-check "Summarize this folder."
-codex-auth --profile review ~/auth.json-work -- resume --last
+codex-auth --auth.json ~/auth.json-work
+codex-auth --auth.json ~/auth.json-work exec --skip-git-repo-check "Summarize this folder."
+codex-auth --auth.json ~/auth.json-personal -- exec --skip-git-repo-check "Summarize this folder."
+codex-auth --profile review --auth.json ~/auth.json-work exec --skip-git-repo-check "Summarize this folder."
+codex-auth-profile review --auth.json ~/auth.json-work exec --skip-git-repo-check "Summarize this folder."
+codex-auth exec --skip-git-repo-check "Summarize this folder." --profile review --auth.json ~/auth.json-work
+codex-auth --profile review resume --last
 ```
 
 Each auth file path gets its own isolated `CODEX_HOME`, so sessions, resumes, and history stay separate.
 
 If you use the same auth file path again, the launcher reuses that same profile home.
 
+If you create a named profile with `--profile`, that profile remembers its auth file path and can be reused later without `--auth.json`.
+
+`codex-auth-profile <name> ...` provides the same named-profile behavior, but it requires the profile name to be the first positional argument.
+
+If you need to pass Codex's own `--profile` flag through to `codex`, put it after an explicit `--` so the launcher does not consume it.
+
+```bash
+codex-auth --profile review --auth.json ~/auth.json-work -- exec --profile fast
+```
+
 ### 3) Print the prepared CODEX_HOME for a profile
 
 ```bash
-codex-auth-home ~/auth.json-work
-CODEX_HOME="$(codex-auth-home ~/auth.json-work)" codex login status
+codex-auth-home --auth.json ~/auth.json-work
+codex-auth-home --profile review
+CODEX_HOME="$(codex-auth-home --profile review)" codex login status
 ```
 
 This is useful when you want to launch Codex yourself after preparing the profile home.
@@ -115,9 +153,10 @@ This is useful when you want to launch Codex yourself after preparing the profil
 ### 4) Reset an existing isolated profile
 
 ```bash
-codex-auth-reset ~/auth.json-work
-codex-auth-reset --yes ~/auth.json-work
-codex-auth-reset --profile review --yes ~/auth.json-work
+codex-auth-reset --auth.json ~/auth.json-work
+codex-auth-reset --yes --auth.json ~/auth.json-work
+codex-auth-reset --profile review --yes
+codex-auth-reset --profile review --yes --auth.json ~/auth.json-work
 ```
 
 This deletes the isolated profile directory for that auth file, including persisted sessions, history, and local Codex state.
@@ -126,20 +165,32 @@ The next `codex-auth` run recreates it from `~/.codex`.
 ### 5) Reuse config or shared assets from an existing CODEX_HOME
 
 ```bash
-codex-auth --link-config ~/auth.json-work
-codex-auth --link-config --share-path skills --share-path agents ~/auth.json-work
-codex-auth --base-home ~/.codex-team --share-path trustedFolders.json ~/auth.json-team
+codex-auth --link-config --auth.json ~/auth.json-work
+codex-auth --link-config --share-path skills --share-path agents --auth.json ~/auth.json-work
+codex-auth --base-home ~/.codex-team --share-path trustedFolders.json --auth.json ~/auth.json-team
 ```
 
 Shared paths are symlinked into the isolated profile home. This is optional and off by default.
 
+### 6) Reset every isolated profile
+
+```bash
+codex-auth-reset-all
+codex-auth-reset-all --yes
+```
+
+This deletes every profile under `~/.codex-auth-launcher/profiles`.
+Use it when you want to remove all persisted auth-specific session state at once.
+
 ## Launcher command syntax
 
 ```bash
-codex-auth [--profile <name>] [--base-home <path>] [--link-config] [--share-path <relative-path>]... [--print-home] <auth-file> [--] [codex args...]
-codex-auth-link [--codex-home <path>] <auth-file>
-codex-auth-home [--profile <name>] [--base-home <path>] [--link-config] [--share-path <relative-path>]... <auth-file>
-codex-auth-reset [--profile <name>] [--yes] <auth-file>
+codex-auth [--profile <name>] [--auth.json <path>] [--base-home <path>] [--link-config] [--share-path <relative-path>]... [--print-home] [--] [codex args...]
+codex-auth-profile <profile-name> [launcher options] [--] [codex args...]
+codex-auth-link [--codex-home <path>] --auth.json <auth-file>
+codex-auth-home [--profile <name>] [--auth.json <path>] [--base-home <path>] [--link-config] [--share-path <relative-path>]...
+codex-auth-reset [--profile <name>] [--auth.json <path>] [--yes]
+codex-auth-reset-all [--yes]
 ```
 
 ## Files created by the launcher
@@ -161,8 +212,11 @@ codex-auth-reset [--profile <name>] [--yes] <auth-file>
 
 - The isolated mode keeps session state separate because each profile gets its own `CODEX_HOME`.
 - The first run for a profile copies the current `~/.codex` into that isolated home before replacing `auth.json` with a symlink.
-- The same canonical auth file path and the same optional `--profile` value resolve to the same isolated profile directory.
+- Auto-generated profiles are keyed by the canonical auth file path.
+- Named profiles created with `--profile` remember their auth file path and can be reused later without `--auth.json`.
+- `codex-auth-profile` is a convenience wrapper that requires the profile name as the first positional argument.
 - `codex-auth-reset` deletes the isolated profile directory so the next run starts from a fresh bootstrap.
+- `codex-auth-reset-all` deletes every isolated profile directory managed by the launcher.
 - `codex resume`, `codex fork`, and session history only see data inside the current profile home.
 - `--link-config` is opt-in. If the linked config redirects `history`, `sqlite_home`, or `log_dir`, that can reduce isolation.
 - `--share-path` should only be used for files or directories you intentionally want to share.

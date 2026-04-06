@@ -1,12 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
+# shellcheck source=./profile-common.sh
+source "$SCRIPT_DIR/profile-common.sh"
+
 usage() {
   cat >&2 <<'EOF'
-Usage: codex-auth [options] <auth-file> [-- codex args...]
+Usage: codex-auth [options] [--] [codex args...]
 
 Options:
   --profile <name>      Stable profile hint for the isolated CODEX_HOME.
+  --auth.json <path>    Auth file path. Required on first use of a profile.
   --base-home <path>    Existing CODEX_HOME used by --link-config and --share-path.
   --link-config         Link config.toml from the base home into the profile.
   --share-path <path>   Link an additional relative path from the base home.
@@ -14,18 +19,14 @@ Options:
   -h, --help            Show this help.
 
 Examples:
-  codex-auth ~/auth.json-work
-  codex-auth ~/auth.json-work -- exec --skip-git-repo-check "Summarize this folder."
-  codex-auth --profile review ~/auth.json-work -- resume --last
-  codex-auth --link-config --share-path skills ~/auth.json-work
+  codex-auth --auth.json ~/auth.json-work login status
+  codex-auth --auth.json ~/auth.json-work exec --skip-git-repo-check "Summarize this folder."
+  codex-auth --profile review --auth.json ~/auth.json-work exec --skip-git-repo-check "Summarize this folder."
+  codex-auth exec --skip-git-repo-check "Summarize this folder." --profile review --auth.json ~/auth.json-work
+  codex-auth --profile review resume --last
+  codex-auth --link-config --share-path skills --auth.json ~/auth.json-work
 EOF
   exit 1
-}
-
-sanitize_slug() {
-  local value="$1"
-
-  printf '%s' "$value" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '-' | sed 's/^-//; s/-$//'
 }
 
 ensure_relative_share_path() {
@@ -118,18 +119,15 @@ declare -a SHARE_PATHS=()
 declare -a CODEX_ARGS=()
 
 while [ "$#" -gt 0 ]; do
-  if [ -n "$AUTH_FILE_INPUT" ]; then
-    if [ "$1" = "--" ]; then
-      shift
-    fi
-    CODEX_ARGS=("$@")
-    break
-  fi
-
   case "$1" in
     --profile)
       [ "$#" -ge 2 ] || usage
       PROFILE_HINT="$2"
+      shift 2
+      ;;
+    --auth.json|--auth-json)
+      [ "$#" -ge 2 ] || usage
+      AUTH_FILE_INPUT="$2"
       shift 2
       ;;
     --base-home)
@@ -155,50 +153,94 @@ while [ "$#" -gt 0 ]; do
       ;;
     --)
       shift
-      CODEX_ARGS=("$@")
+      CODEX_ARGS+=("$@")
       break
       ;;
-    -* )
-      echo "Unknown launcher option: $1" >&2
-      usage
-      ;;
     *)
-      if [ -z "$AUTH_FILE_INPUT" ]; then
-        AUTH_FILE_INPUT="$1"
-      else
-        CODEX_ARGS+=("$1")
-      fi
+      CODEX_ARGS+=("$1")
       shift
       ;;
   esac
 done
 
-if [ -z "$AUTH_FILE_INPUT" ]; then
-  usage
-fi
-
-if [ ! -f "$AUTH_FILE_INPUT" ]; then
-  echo "Auth file not found: $AUTH_FILE_INPUT" >&2
-  exit 1
-fi
-
-AUTH_FILE="$(readlink -f "$AUTH_FILE_INPUT")"
 REAL_HOME="${HOME:?HOME is required}"
 LAUNCHER_HOME="${CODEX_AUTH_LAUNCHER_HOME:-$REAL_HOME/.codex-auth-launcher}"
 BOOTSTRAP_HOME="${CODEX_AUTH_LAUNCHER_BOOTSTRAP_HOME:-$REAL_HOME/.codex}"
 PROFILE_BASE_DIR="$LAUNCHER_HOME/profiles"
+STORED_AUTH_FILE=""
+EXISTING_PROFILE_ROOT=""
+
+if [ -n "$AUTH_FILE_INPUT" ] && [ ! -f "$AUTH_FILE_INPUT" ]; then
+  echo "Auth file not found: $AUTH_FILE_INPUT" >&2
+  exit 1
+fi
+
+if [ -n "$AUTH_FILE_INPUT" ]; then
+  AUTH_FILE="$(readlink -f "$AUTH_FILE_INPUT")"
+else
+  AUTH_FILE=""
+fi
 
 if [ -n "$PROFILE_HINT" ]; then
-  PROFILE_SLUG="$(sanitize_slug "$PROFILE_HINT")"
-  PROFILE_HASH="$(printf '%s|%s' "$AUTH_FILE" "$PROFILE_HINT" | sha256sum | cut -c1-12)"
+  set +e
+  EXISTING_PROFILE_ROOT="$(find_profile_root_by_hint "$PROFILE_BASE_DIR" "$PROFILE_HINT")"
+  FIND_PROFILE_STATUS=$?
+  set -e
+
+  if [ "$FIND_PROFILE_STATUS" -eq 2 ]; then
+    echo "Profile hint is ambiguous: $PROFILE_HINT" >&2
+    echo "Reset duplicate profiles before reusing this profile hint." >&2
+    exit 1
+  fi
+
+  if [ "$FIND_PROFILE_STATUS" -ne 0 ]; then
+    exit "$FIND_PROFILE_STATUS"
+  fi
+
+  if [ -n "$EXISTING_PROFILE_ROOT" ]; then
+    PROFILE_ROOT="$EXISTING_PROFILE_ROOT"
+    PROFILE_NAME="$(basename "$PROFILE_ROOT")"
+    STORED_AUTH_FILE="$(load_profile_auth_source "$PROFILE_ROOT")"
+
+    if [ -n "$AUTH_FILE" ] && [ -n "$STORED_AUTH_FILE" ] && [ "$AUTH_FILE" != "$STORED_AUTH_FILE" ]; then
+      echo "Profile \"$PROFILE_HINT\" is already bound to a different auth.json:" >&2
+      echo "  $STORED_AUTH_FILE" >&2
+      echo "Use a different profile name or reset the profile first." >&2
+      exit 1
+    fi
+
+    if [ -z "$AUTH_FILE" ]; then
+      AUTH_FILE="$STORED_AUTH_FILE"
+    fi
+  else
+    PROFILE_SLUG="$(sanitize_slug "$PROFILE_HINT")"
+    PROFILE_NAME="${PROFILE_SLUG:-profile}"
+    PROFILE_ROOT="$PROFILE_BASE_DIR/$PROFILE_NAME"
+  fi
+
+  if [ -z "$AUTH_FILE" ]; then
+    echo "Profile \"$PROFILE_HINT\" does not have a stored auth.json yet." >&2
+    echo "Provide --auth.json on first use." >&2
+    exit 1
+  fi
 else
+  if [ -z "$AUTH_FILE" ]; then
+    echo "Missing required option: --auth.json" >&2
+    usage
+  fi
+
   AUTH_BASENAME="$(basename "$AUTH_FILE")"
   PROFILE_SLUG="$(printf '%s' "$AUTH_BASENAME" | tr '[:upper:]' '[:lower:]' | sed 's/\.[^.]*$//' | tr -cs 'a-z0-9' '-' | sed 's/^-//; s/-$//')"
   PROFILE_HASH="$(printf '%s' "$AUTH_FILE" | sha256sum | cut -c1-12)"
+  PROFILE_NAME="${PROFILE_SLUG:-auth}-$PROFILE_HASH"
+  PROFILE_ROOT="$PROFILE_BASE_DIR/$PROFILE_NAME"
 fi
 
-PROFILE_NAME="${PROFILE_SLUG:-auth}-$PROFILE_HASH"
-PROFILE_ROOT="$PROFILE_BASE_DIR/$PROFILE_NAME"
+if [ ! -f "$AUTH_FILE" ]; then
+  echo "Stored auth file not found: $AUTH_FILE" >&2
+  exit 1
+fi
+
 PROFILE_CODEX_HOME="$PROFILE_ROOT/codex-home"
 PROFILE_METADATA_FILE="$PROFILE_ROOT/profile.json"
 PROFILE_AUTH_FILE="$PROFILE_CODEX_HOME/auth.json"
