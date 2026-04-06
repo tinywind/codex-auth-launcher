@@ -37,6 +37,25 @@ ensure_relative_share_path() {
   fi
 }
 
+bootstrap_profile_home() {
+  local source_home="$1"
+  local target_home="$2"
+
+  if [ ! -d "$source_home" ]; then
+    return 0
+  fi
+
+  if [ -n "$(ls -A "$target_home" 2>/dev/null || true)" ]; then
+    return 0
+  fi
+
+  cp -a "$source_home"/. "$target_home"/
+
+  if [ -e "$target_home/auth.json" ] || [ -L "$target_home/auth.json" ]; then
+    rm -f "$target_home/auth.json"
+  fi
+}
+
 ensure_auth_link() {
   local source_auth="$1"
   local target_auth="$2"
@@ -99,6 +118,14 @@ declare -a SHARE_PATHS=()
 declare -a CODEX_ARGS=()
 
 while [ "$#" -gt 0 ]; do
+  if [ -n "$AUTH_FILE_INPUT" ]; then
+    if [ "$1" = "--" ]; then
+      shift
+    fi
+    CODEX_ARGS=("$@")
+    break
+  fi
+
   case "$1" in
     --profile)
       [ "$#" -ge 2 ] || usage
@@ -158,6 +185,7 @@ fi
 AUTH_FILE="$(readlink -f "$AUTH_FILE_INPUT")"
 REAL_HOME="${HOME:?HOME is required}"
 LAUNCHER_HOME="${CODEX_AUTH_LAUNCHER_HOME:-$REAL_HOME/.codex-auth-launcher}"
+BOOTSTRAP_HOME="${CODEX_AUTH_LAUNCHER_BOOTSTRAP_HOME:-$REAL_HOME/.codex}"
 PROFILE_BASE_DIR="$LAUNCHER_HOME/profiles"
 
 if [ -n "$PROFILE_HINT" ]; then
@@ -175,8 +203,17 @@ PROFILE_CODEX_HOME="$PROFILE_ROOT/codex-home"
 PROFILE_METADATA_FILE="$PROFILE_ROOT/profile.json"
 PROFILE_AUTH_FILE="$PROFILE_CODEX_HOME/auth.json"
 
+PROFILE_ALREADY_EXISTS=0
+if [ -n "$(ls -A "$PROFILE_CODEX_HOME" 2>/dev/null || true)" ]; then
+  PROFILE_ALREADY_EXISTS=1
+fi
+
 mkdir -p "$PROFILE_BASE_DIR" "$PROFILE_ROOT" "$PROFILE_CODEX_HOME"
 chmod 700 "$LAUNCHER_HOME" "$PROFILE_BASE_DIR" "$PROFILE_ROOT" "$PROFILE_CODEX_HOME" 2>/dev/null || true
+
+if [ "$PROFILE_ALREADY_EXISTS" -eq 0 ]; then
+  bootstrap_profile_home "$BOOTSTRAP_HOME" "$PROFILE_CODEX_HOME"
+fi
 
 ensure_auth_link "$AUTH_FILE" "$PROFILE_AUTH_FILE"
 
@@ -211,6 +248,8 @@ PROFILE_ROOT="$PROFILE_ROOT" \
 PROFILE_CODEX_HOME="$PROFILE_CODEX_HOME" \
 PROFILE_AUTH_FILE="$PROFILE_AUTH_FILE" \
 BASE_HOME="$BASE_HOME" \
+BOOTSTRAP_HOME="$BOOTSTRAP_HOME" \
+PROFILE_ALREADY_EXISTS="$PROFILE_ALREADY_EXISTS" \
 LINK_CONFIG="$LINK_CONFIG" \
 SHARED_PATHS_SERIALIZED="$SHARED_PATHS_SERIALIZED" \
 python3 - "$PROFILE_METADATA_FILE" <<'PY'
@@ -229,6 +268,8 @@ payload = {
     "codexHome": os.environ["PROFILE_CODEX_HOME"],
     "authLink": os.environ["PROFILE_AUTH_FILE"],
     "baseHome": os.environ.get("BASE_HOME") or None,
+    "bootstrapHome": os.environ.get("BOOTSTRAP_HOME") or None,
+    "bootstrappedOnFirstUse": os.environ["PROFILE_ALREADY_EXISTS"] == "0",
     "linkConfig": os.environ["LINK_CONFIG"] == "1",
     "sharedPaths": shared_paths,
 }
