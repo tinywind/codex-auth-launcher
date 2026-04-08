@@ -7,23 +7,23 @@ source "$SCRIPT_DIR/profile-common.sh"
 
 usage() {
   cat >&2 <<'EOF'
-Usage: codex-auth-reset [--profile <name>] [--auth.json <path>] [--yes]
+Usage: codex-auth-reset [--profile <name>] [--cred-file <path>] [--yes]
 
 Delete the isolated Codex profile for the given auth file.
 The next run recreates it by copying ~/.codex and relinking auth.json.
 
 Options:
   --profile <name>  Profile hint used when the profile was created.
-  --auth.json <path>
+  --cred-file <path>
                     Auth file path. Optional when reusing an existing named profile.
   --yes             Delete without confirmation.
   -h, --help        Show this help.
 
 Examples:
-  codex-auth-reset --auth.json ~/auth.json-work
-  codex-auth-reset --yes --auth.json ~/auth.json-work
+  codex-auth-reset --cred-file ~/auth.json-work
+  codex-auth-reset --yes --cred-file ~/auth.json-work
   codex-auth-reset --profile review --yes
-  codex-auth-reset --profile review --yes --auth.json ~/auth.json-work
+  codex-auth-reset --profile review --yes --cred-file ~/auth.json-work
 EOF
   exit 1
 }
@@ -39,7 +39,7 @@ while [ "$#" -gt 0 ]; do
       PROFILE_HINT="$2"
       shift 2
       ;;
-    --auth.json|--auth-json)
+    --cred-file)
       [ "$#" -ge 2 ] || usage
       AUTH_FILE_INPUT="$2"
       shift 2
@@ -112,7 +112,7 @@ if [ -n "$PROFILE_HINT" ]; then
   else
     if [ -z "$AUTH_FILE" ]; then
       echo "Profile \"$PROFILE_HINT\" does not exist yet." >&2
-      echo "Provide --auth.json only after that profile has been created, or create it first with codex-auth." >&2
+      echo "Provide --cred-file only after that profile has been created, or create it first with codex-auth." >&2
       exit 1
     fi
 
@@ -121,7 +121,7 @@ if [ -n "$PROFILE_HINT" ]; then
   fi
 else
   if [ -z "$AUTH_FILE" ]; then
-    echo "Missing required option: --auth.json" >&2
+    echo "Missing required option: --cred-file" >&2
     usage
   fi
 

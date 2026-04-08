@@ -3,11 +3,11 @@ set -euo pipefail
 
 usage() {
   cat >&2 <<'EOF'
-Usage: codex-auth-link [--codex-home <path>] --auth.json <auth-file>
+Usage: codex-auth-link [--codex-home <path>] --cred-file <auth-file>
 
 Examples:
-  codex-auth-link --auth.json ~/auth.json-work
-  codex-auth-link --codex-home ~/.codex-team --auth.json ~/auth.json-team
+  codex-auth-link --cred-file ~/auth.json-work
+  codex-auth-link --codex-home ~/.codex-team --cred-file ~/auth.json-team
 EOF
   exit 1
 }
@@ -22,7 +22,7 @@ while [ "$#" -gt 0 ]; do
       TARGET_CODEX_HOME="$2"
       shift 2
       ;;
-    --auth.json|--auth-json)
+    --cred-file)
       [ "$#" -ge 2 ] || usage
       AUTH_FILE_INPUT="$2"
       shift 2
@@ -42,7 +42,7 @@ while [ "$#" -gt 0 ]; do
 done
 
 if [ -z "$AUTH_FILE_INPUT" ]; then
-  echo "Missing required option: --auth.json" >&2
+  echo "Missing required option: --cred-file" >&2
   usage
 fi
 

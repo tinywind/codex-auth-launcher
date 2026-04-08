@@ -11,7 +11,7 @@ Usage: codex-auth [options] [--] [codex args...]
 
 Options:
   --profile <name>      Stable profile hint for the isolated CODEX_HOME.
-  --auth.json <path>    Auth file path. Required on first use of a profile.
+  --cred-file <path>    Auth file path. Required on first use of a profile.
   --base-home <path>    Existing CODEX_HOME used by --link-config and --share-path.
   --link-config         Link config.toml from the base home into the profile.
   --share-path <path>   Link an additional relative path from the base home.
@@ -19,12 +19,12 @@ Options:
   -h, --help            Show this help.
 
 Examples:
-  codex-auth --auth.json ~/auth.json-work login status
-  codex-auth --auth.json ~/auth.json-work exec "Summarize this folder."
-  codex-auth --profile review --auth.json ~/auth.json-work exec "Summarize this folder."
-  codex-auth exec "Summarize this folder." --profile review --auth.json ~/auth.json-work
+  codex-auth --cred-file ~/auth.json-work login status
+  codex-auth --cred-file ~/auth.json-work exec "Summarize this folder."
+  codex-auth --profile review --cred-file ~/auth.json-work exec "Summarize this folder."
+  codex-auth exec "Summarize this folder." --profile review --cred-file ~/auth.json-work
   codex-auth --profile review resume --last
-  codex-auth --link-config --share-path skills --auth.json ~/auth.json-work
+  codex-auth --link-config --share-path skills --cred-file ~/auth.json-work
 EOF
   exit 1
 }
@@ -211,7 +211,7 @@ while [ "$#" -gt 0 ]; do
       PROFILE_HINT="$2"
       shift 2
       ;;
-    --auth.json|--auth-json)
+    --cred-file)
       [ "$#" -ge 2 ] || usage
       AUTH_FILE_INPUT="$2"
       shift 2
@@ -302,12 +302,12 @@ if [ -n "$PROFILE_HINT" ]; then
 
   if [ -z "$AUTH_FILE" ]; then
     echo "Profile \"$PROFILE_HINT\" does not have a stored auth.json yet." >&2
-    echo "Provide --auth.json on first use." >&2
+    echo "Provide --cred-file on first use." >&2
     exit 1
   fi
 else
   if [ -z "$AUTH_FILE" ]; then
-    echo "Missing required option: --auth.json" >&2
+    echo "Missing required option: --cred-file" >&2
     usage
   fi
 

@@ -9,12 +9,12 @@ usage() {
 Usage: codex-auth-profile <profile-name> [launcher options] [--] [codex args...]
 
 The profile name must be the first positional argument.
-On first use of a profile, you must pass --auth.json <path>.
+On first use of a profile, you must pass --cred-file <path>.
 This command is a wrapper around:
   codex-auth --profile <profile-name> ...
 
 Examples:
-  codex-auth-profile help --auth.json ~/auth.json-work login status
+  codex-auth-profile help --cred-file ~/auth.json-work login status
   codex-auth-profile help exec "Summarize this folder."
   codex-auth-profile help -- exec --profile fast
 EOF
