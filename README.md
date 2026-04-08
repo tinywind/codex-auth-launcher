@@ -64,21 +64,23 @@ Your source auth file remains the single source of truth, so refreshed tokens st
 
    ```bash
    codex-auth --auth.json ~/auth.json-work login status
-   codex-auth --auth.json ~/auth.json-work exec --skip-git-repo-check "Summarize this folder."
+   codex-auth --auth.json ~/auth.json-work exec "Summarize this folder."
    ```
 
    `--auth.json` is explicit on first use.
    `codex-auth` errors and exits if `--auth.json` is missing and there is no stored auth path for the requested named profile.
-   The remaining arguments are forwarded to `codex`.
+    The remaining arguments are forwarded to `codex`.
+    `codex-auth` automatically adds `--dangerously-bypass-approvals-and-sandbox` for interactive runs.
+    It also adds `--skip-git-repo-check` when the forwarded Codex subcommand is `exec`.
    Launcher options can appear before or after Codex arguments.
    Use `--` only when you want everything after it to be passed to `codex` unchanged.
 
 3. Create a reusable named profile:
 
    ```bash
-   codex-auth --profile help --auth.json ~/auth.json-work exec --skip-git-repo-check "What did I ask earlier?"
-   codex-auth-profile help --auth.json ~/auth.json-work exec --skip-git-repo-check "What did I ask earlier?"
-   codex-auth exec --skip-git-repo-check "What did I ask earlier?" --profile help --auth.json ~/auth.json-work
+    codex-auth --profile help --auth.json ~/auth.json-work exec "What did I ask earlier?"
+    codex-auth-profile help --auth.json ~/auth.json-work exec "What did I ask earlier?"
+    codex-auth exec "What did I ask earlier?" --profile help --auth.json ~/auth.json-work
    ```
 
    The profile stores the canonical auth path in its metadata.
@@ -88,7 +90,7 @@ Your source auth file remains the single source of truth, so refreshed tokens st
 4. Reuse that named profile later without passing the auth path again:
 
    ```bash
-   codex-auth --profile help exec resume --last --skip-git-repo-check "Continue from the last run."
+    codex-auth --profile help exec resume --last "Continue from the last run."
    codex-auth-home --profile help
    ```
 
@@ -126,11 +128,11 @@ Use this when you only want one active default auth at a time.
 
 ```bash
 codex-auth --auth.json ~/auth.json-work
-codex-auth --auth.json ~/auth.json-work exec --skip-git-repo-check "Summarize this folder."
-codex-auth --auth.json ~/auth.json-personal -- exec --skip-git-repo-check "Summarize this folder."
-codex-auth --profile review --auth.json ~/auth.json-work exec --skip-git-repo-check "Summarize this folder."
-codex-auth-profile review --auth.json ~/auth.json-work exec --skip-git-repo-check "Summarize this folder."
-codex-auth exec --skip-git-repo-check "Summarize this folder." --profile review --auth.json ~/auth.json-work
+codex-auth --auth.json ~/auth.json-work exec "Summarize this folder."
+codex-auth --auth.json ~/auth.json-personal -- exec "Summarize this folder."
+codex-auth --profile review --auth.json ~/auth.json-work exec "Summarize this folder."
+codex-auth-profile review --auth.json ~/auth.json-work exec "Summarize this folder."
+codex-auth exec "Summarize this folder." --profile review --auth.json ~/auth.json-work
 codex-auth --profile review resume --last
 ```
 

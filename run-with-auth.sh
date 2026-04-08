@@ -20,9 +20,9 @@ Options:
 
 Examples:
   codex-auth --auth.json ~/auth.json-work login status
-  codex-auth --auth.json ~/auth.json-work exec --skip-git-repo-check "Summarize this folder."
-  codex-auth --profile review --auth.json ~/auth.json-work exec --skip-git-repo-check "Summarize this folder."
-  codex-auth exec --skip-git-repo-check "Summarize this folder." --profile review --auth.json ~/auth.json-work
+  codex-auth --auth.json ~/auth.json-work exec "Summarize this folder."
+  codex-auth --profile review --auth.json ~/auth.json-work exec "Summarize this folder."
+  codex-auth exec "Summarize this folder." --profile review --auth.json ~/auth.json-work
   codex-auth --profile review resume --last
   codex-auth --link-config --share-path skills --auth.json ~/auth.json-work
 EOF
@@ -108,6 +108,92 @@ ensure_shared_path_link() {
   fi
 
   ln -s "$source_path" "$target_path"
+}
+
+has_codex_arg() {
+  local expected_arg="$1"
+  local codex_arg
+
+  for codex_arg in "${CODEX_ARGS[@]}"; do
+    if [ "$codex_arg" = "$expected_arg" ]; then
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+apply_default_codex_args() {
+  local -a global_default_args=(
+    "--dangerously-bypass-approvals-and-sandbox"
+  )
+  local -a exec_only_args=(
+    "--skip-git-repo-check"
+  )
+  local -a updated_args=()
+  local subcommand_index=-1
+  local index
+
+  if [ "${#CODEX_ARGS[@]}" -eq 0 ]; then
+    CODEX_ARGS=("${global_default_args[@]}")
+    return 0
+  fi
+
+  for index in "${!CODEX_ARGS[@]}"; do
+    if [[ "${CODEX_ARGS[$index]}" != -* ]]; then
+      subcommand_index="$index"
+      break
+    fi
+  done
+
+  if [ "$subcommand_index" -lt 0 ]; then
+    for index in "${!global_default_args[@]}"; do
+      if ! has_codex_arg "${global_default_args[$index]}"; then
+        updated_args+=("${global_default_args[$index]}")
+      fi
+    done
+
+    updated_args+=("${CODEX_ARGS[@]}")
+    CODEX_ARGS=("${updated_args[@]}")
+    return 0
+  fi
+
+  case "${CODEX_ARGS[$subcommand_index]}" in
+    exec|resume) ;;
+    *)
+      for index in "${!global_default_args[@]}"; do
+        if ! has_codex_arg "${global_default_args[$index]}"; then
+          updated_args+=("${global_default_args[$index]}")
+        fi
+      done
+
+      updated_args+=("${CODEX_ARGS[@]}")
+      CODEX_ARGS=("${updated_args[@]}")
+      return 0
+      ;;
+  esac
+
+  updated_args=("${CODEX_ARGS[@]:0:$((subcommand_index + 1))}")
+
+  for index in "${!global_default_args[@]}"; do
+    if ! has_codex_arg "${global_default_args[$index]}"; then
+      updated_args+=("${global_default_args[$index]}")
+    fi
+  done
+
+  if [ "${CODEX_ARGS[$subcommand_index]}" = "exec" ]; then
+    for index in "${!exec_only_args[@]}"; do
+      if ! has_codex_arg "${exec_only_args[$index]}"; then
+        updated_args+=("${exec_only_args[$index]}")
+      fi
+    done
+  fi
+
+  if [ "$subcommand_index" -lt $((${#CODEX_ARGS[@]} - 1)) ]; then
+    updated_args+=("${CODEX_ARGS[@]:$((subcommand_index + 1))}")
+  fi
+
+  CODEX_ARGS=("${updated_args[@]}")
 }
 
 PROFILE_HINT="${CODEX_AUTH_LAUNCHER_PROFILE:-}"
@@ -322,6 +408,8 @@ if [ "$PRINT_HOME" -eq 1 ]; then
   printf '%s\n' "$PROFILE_CODEX_HOME"
   exit 0
 fi
+
+apply_default_codex_args
 
 echo "Using isolated Codex profile: $PROFILE_NAME" >&2
 echo "Auth symlink: $PROFILE_AUTH_FILE -> $AUTH_FILE" >&2

@@ -15,7 +15,7 @@ This command is a wrapper around:
 
 Examples:
   codex-auth-profile help --auth.json ~/auth.json-work login status
-  codex-auth-profile help exec --skip-git-repo-check "Summarize this folder."
+  codex-auth-profile help exec "Summarize this folder."
   codex-auth-profile help -- exec --profile fast
 EOF
   exit 1
