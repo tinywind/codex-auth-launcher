@@ -22,6 +22,8 @@ This launcher solves that by using:
 - `codex-auth-link` → relinks the default `auth.json`
 - `codex-auth` → runs Codex with a dedicated `CODEX_HOME` per auth file
 - `codex-auth-home` → prints the isolated `CODEX_HOME` path for a profile
+- `codex-auth-resync` → refreshes one existing profile from `~/.codex`
+- `codex-auth-resync-all` → refreshes every existing profile from `~/.codex`
 
 ## First-use bootstrap behavior
 
@@ -31,7 +33,10 @@ When a profile is created for the first time, the launcher bootstraps its `CODEX
 - The copied `auth.json` is removed immediately.
 - The profile then links `auth.json` to the selected source auth file.
 
-Later runs for the same auth file reuse the same profile home instead of copying again.
+Later runs for the same auth file reuse that same profile home instead of copying again.
+
+If you want to refresh an existing profile from `~/.codex`, use `codex-auth-resync` or `codex-auth-resync-all`.
+Those commands overwrite shared config copies such as `agents/`, `hooks/`, `skills/`, and `AGENTS.md`, while preserving existing profile-local session and history state.
 
 If you create a named profile with `--profile`, that profile remembers its canonical auth file path in `profile.json`.
 After the first run, you can reuse that profile by name without passing `--cred-file` again.
@@ -174,7 +179,26 @@ codex-auth-reset --profile review --yes --cred-file ~/auth.json-work
 This deletes the isolated profile directory for that auth file, including persisted sessions, history, and local Codex state.
 The next `codex-auth` run recreates it from `~/.codex`.
 
-### 5) Reuse config or shared assets from an existing CODEX_HOME
+### 5) Resync shared config from `~/.codex` into an existing profile
+
+```bash
+codex-auth-resync --cred-file ~/auth.json-work
+codex-auth-resync --profile review
+codex-auth-resync --profile review --cred-file ~/auth.json-work
+```
+
+This overwrites shared config copies from `~/.codex` in the selected profile.
+Existing profile-local session and history state is preserved.
+
+### 6) Resync every existing isolated profile
+
+```bash
+codex-auth-resync-all
+```
+
+This refreshes every existing profile from `~/.codex` while preserving each profile's local session and history state.
+
+### 7) Reuse config or shared assets from an existing CODEX_HOME
 
 ```bash
 codex-auth --link-config --cred-file ~/auth.json-work
@@ -184,7 +208,7 @@ codex-auth --base-home ~/.codex-team --share-path trustedFolders.json --cred-fil
 
 Shared paths are symlinked into the isolated profile home. This is optional and off by default.
 
-### 6) Reset every isolated profile
+### 8) Reset every isolated profile
 
 ```bash
 codex-auth-reset-all
@@ -201,6 +225,8 @@ codex-auth [--profile <name>] [--cred-file <path>] [--base-home <path>] [--link-
 codex-auth-profile <profile-name> [launcher options] [--] [codex args...]
 codex-auth-link [--codex-home <path>] --cred-file <auth-file>
 codex-auth-home [--profile <name>] [--cred-file <path>] [--base-home <path>] [--link-config] [--share-path <relative-path>]...
+codex-auth-resync [--profile <name>] [--cred-file <path>]
+codex-auth-resync-all
 codex-auth-reset [--profile <name>] [--cred-file <path>] [--yes]
 codex-auth-reset-all [--yes]
 ```
@@ -224,6 +250,8 @@ codex-auth-reset-all [--yes]
 ├── run-with-auth.sh
 ├── run-with-profile.sh
 ├── link-global-auth.sh
+├── resync-profile.sh
+├── resync-all-profiles.sh
 ├── reset-profile.sh
 └── reset-all-profiles.sh
 
@@ -232,6 +260,8 @@ codex-auth-reset-all [--yes]
 ├── codex-auth-profile
 ├── codex-auth-link
 ├── codex-auth-home
+├── codex-auth-resync
+├── codex-auth-resync-all
 ├── codex-auth-reset
 └── codex-auth-reset-all
 ```
@@ -239,7 +269,8 @@ codex-auth-reset-all [--yes]
 ## Notes
 
 - The isolated mode keeps session state separate because each profile gets its own `CODEX_HOME`.
-- The first run for a profile copies the current `~/.codex` into that isolated home before replacing `auth.json` with a symlink.
+- `codex-auth` bootstraps a profile on first use, but it does not resync existing profiles automatically.
+- `codex-auth-resync` and `codex-auth-resync-all` overwrite shared config copies from `~/.codex` while preserving existing profile-local session and history paths.
 - Auto-generated profiles are keyed by the canonical auth file path.
 - Named profiles created with `--profile` remember their auth file path and can be reused later without `--cred-file`.
 - Passing `--cred-file` to an existing named profile rebinds that profile to the new auth file while keeping its existing sessions and local state.

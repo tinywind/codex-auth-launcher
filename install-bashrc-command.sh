@@ -113,6 +113,8 @@ copy_runtime_file "run-with-profile.sh" 755
 copy_runtime_file "link-global-auth.sh" 755
 copy_runtime_file "reset-profile.sh" 755
 copy_runtime_file "reset-all-profiles.sh" 755
+copy_runtime_file "resync-profile.sh" 755
+copy_runtime_file "resync-all-profiles.sh" 755
 
 write_wrapper "$BIN_DIR/codex-auth" "$INSTALL_ROOT/run-with-auth.sh"
 write_wrapper "$BIN_DIR/codex-auth-profile" "$INSTALL_ROOT/run-with-profile.sh"
@@ -120,6 +122,8 @@ write_wrapper "$BIN_DIR/codex-auth-link" "$INSTALL_ROOT/link-global-auth.sh"
 write_wrapper "$BIN_DIR/codex-auth-home" "$INSTALL_ROOT/run-with-auth.sh" --print-home
 write_wrapper "$BIN_DIR/codex-auth-reset" "$INSTALL_ROOT/reset-profile.sh"
 write_wrapper "$BIN_DIR/codex-auth-reset-all" "$INSTALL_ROOT/reset-all-profiles.sh"
+write_wrapper "$BIN_DIR/codex-auth-resync" "$INSTALL_ROOT/resync-profile.sh"
+write_wrapper "$BIN_DIR/codex-auth-resync-all" "$INSTALL_ROOT/resync-all-profiles.sh"
 
 update_shell_rc "$TARGET_FILE"
 
