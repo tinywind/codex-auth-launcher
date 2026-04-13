@@ -55,7 +55,7 @@ Your source auth file remains the single source of truth, so refreshed tokens st
 1. Install the local commands:
 
    ```bash
-   bash ~/IdeaProjects/codex-auth-launcher/install-bashrc-command.sh
+   bash ~/Projects/codex-auth-launcher/install-bashrc-command.sh
    source ~/.bashrc
    ```
 
